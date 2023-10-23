@@ -28,6 +28,14 @@ roslaunch xarm6_moveit_config xarm6_moveit_gazebo.launch
 
 ```
 
+to run the simulation with the Gripper added:
+
+```bash
+roslaunch xarm6_gripper_moveit_config xarm6_gripper_moveit_gazebo.launch
+
+roslaunch xarm_gazebo xarm6_beside_table.launch add_gripper:=true
+```
+
 Now you are good to test the code
 exercice2_ros.py is a simple move to goal using resolved motion control algorithm
 exercice4_ros.py includes recursive task priority algorithm.
