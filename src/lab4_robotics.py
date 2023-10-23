@@ -67,6 +67,16 @@ class Manipulator:
                 self.d[i] = self.q[i]
         self.T = kinematics(self.d, self.theta, self.a, self.alpha)
 
+    def update_T(self, q):
+        self.q = q
+        for i in range(len(self.revolute)):
+            if self.revolute[i]:
+                self.theta[i] = self.q[i]
+            else:
+                self.d[i] = self.q[i]
+        self.T = kinematics(self.d, self.theta, self.a, self.alpha)
+
+
     ''' 
         Method that returns the characteristic points of the robot.
     '''

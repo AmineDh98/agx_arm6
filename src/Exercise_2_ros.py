@@ -3,13 +3,14 @@
 import rospy
 from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from geometry_msgs.msg import Point
 import numpy as np
 from lab2_robotics import * # Assuming you have these functions
 import math
 
 
 # Global variables for resolved-rate motion control
-d = np.array([267, 0, 0, 342.5, 0, 97])
+d = np.array([267, 0, 0, 342.5, 0, 197])
 q = np.array([0, -1.3849179, 1.3849179, 0, 0, 0])
 alpha = np.array([-math.pi/2, 0, -math.pi/2, math.pi/2, - math.pi/2, 0])
 a = np.array([0, 289.48866, 77.5, 0, 76, 0])
@@ -18,9 +19,13 @@ revolute = [True, True, True, True, True, True]
 # Desired end-effector position
 #sigma_d = np.array([-1, 50, -150])
 T = kinematics(d, q, a, alpha)
-print(T)
+#print(T)
 #sigma_d = T[-1][0:3,-1]
-sigma_d = np.array([700, 0, 200])
+sigma_d = np.array([600, 0, 300])
+goal_pose = Point()
+goal_pose.x = sigma_d[0]
+goal_pose.y = sigma_d[1]
+goal_pose.z = sigma_d[2]
 print(sigma_d)
 
 # Control gains (you may need to adjust these)
@@ -30,9 +35,9 @@ abc = [0,0,0,0,0,0]
 # Callback function to process joint states and control the arm
 def joint_states_callback(msg):
     global d, q, a, alpha, revolute, sigma_d, K, abc
-    abc = msg.position
+    abc = msg.position[1:7]
     # Extract current joint positions
-    current_joint_positions = np.array(msg.position+q)
+    current_joint_positions = np.array(msg.position[1:7]+q)
     #abc = current_joint_positions
     # Update robot
     T = kinematics(d, current_joint_positions, a, alpha)
@@ -62,9 +67,12 @@ def joint_states_callback(msg):
 
     msg.points.append(point)
     if math.dist(sigma_d,T[-1][0:3,-1])>10:   
+        pub_goal_pose.publish(goal_pose)
         pub.publish(msg)
+        
         #rate.sleep()
     else:
+        pub_goal_pose.publish(goal_pose)
         print("position reached")
         rospy.signal_shutdown("User requested shutdown")
         # msg = JointTrajectory()
@@ -82,7 +90,7 @@ rospy.init_node('control_arm_node')
 # Set the rate (adjust as needed)
 dt = 0.1
 
-
+pub_goal_pose = rospy.Publisher('goal_pose', Point, queue_size=10)
 # Subscribe to the joint states topic
 rospy.Subscriber('/xarm/joint_states', JointState, joint_states_callback)
 

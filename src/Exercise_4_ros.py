@@ -12,18 +12,17 @@ alpha = np.array([-math.pi/2, 0, -math.pi/2, math.pi/2, - math.pi/2, 0])
 a = np.array([0, 289.48866, 77.5, 0, 76, 0])
         
 revolute = [True, True, True, True, True, True]
-sigma_d = np.array([400, 0, 400])
+sigma_d = np.array([600, 0, 700])
 robot = Manipulator(d, q, a, alpha, revolute)
-T = kinematics(d, q, a, alpha)
-robot.setT(T)
+
 # Task hierarchy definition
 tasks = [ 
-    Position2D("End-effector position", sigma_d.reshape(3,1), 6)
-    #Orientation2D("End-effector orientation", np.array([0,0,-1.384]).reshape(3,1), 2)
+    Position2D("End-effector position", sigma_d.reshape(3,1), 6),
+    Orientation2D("End-effector orientation", np.array([0,0,0]).reshape(3,1), 4)
 ] 
 
 # Simulation params
-dt = 0.1
+dt = 1
 
 # Number of tasks
 l = len(tasks)
@@ -37,11 +36,12 @@ def joint_states_callback(data):
     global tasks
     global robot
     global d, q, a, alpha, revolute, sigma_d, abc
-    abc = data.position
+    #if abc[1] == 0:
+    abc = data.position[1:7]
     # Assuming the joint states are in the same order as the DH parameters
-    current_joint_positions = np.array(data.position + q)
-    T = kinematics(d, current_joint_positions, a, alpha)
-    robot.setT(T)
+    current_joint_positions = np.array(data.position[1:7] )
+    robot.update_T(current_joint_positions)
+    
     dof = robot.getDOF()
 
     # Recursive Task-Priority algorithm
@@ -53,11 +53,11 @@ def joint_states_callback(data):
         Jbar = tasks[i].getJacobian() @ P
         dq = dq + DLS(Jbar, 0.5) @ (tasks[i].getError() - (tasks[i].getJacobian() @ dq))
         P = P - np.linalg.pinv(Jbar) @ Jbar
-    #print('T = ',dq)
+    
     # Update robot
-    robot.update(dq, dt)
+   
     abc += dt*dq.flatten()
-    #print(abc.tolist())
+  
     # Publish joint velocities
     vel_msg = JointTrajectory()
     vel_msg.header.stamp = rospy.Time.now()
@@ -65,13 +65,14 @@ def joint_states_callback(data):
     point = JointTrajectoryPoint()
     point.positions = abc.tolist()
     point.time_from_start = rospy.Duration(1)
+    rate = rospy.Rate(1/dt)
     vel_msg.points.append(point)
-    
-    if math.dist(sigma_d,T[-2][0:3,-1])>10:   
+    T = robot.getEETransform()
+    if math.dist(sigma_d,T[0:3,-1])>10:   
         pub.publish(vel_msg)
         #rate.sleep()
     else:
-        #print(len(T))
+      
         print("position reached")
         rospy.signal_shutdown("User requested shutdown")
 

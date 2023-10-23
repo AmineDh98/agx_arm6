@@ -12,7 +12,7 @@ alpha = np.array([-math.pi/2, 0, -math.pi/2, math.pi/2, - math.pi/2, 0])
 a = np.array([0, 289.48866, 77.5, 0, 76, 0])
         
 revolute = [True, True, True, True, True, True]
-sigma_d = np.array([400, 0, 200])
+sigma_d = np.array([0, 0, 0])
 robot = Manipulator(d, q, a, alpha, revolute)
 
 # Task hierarchy definition
