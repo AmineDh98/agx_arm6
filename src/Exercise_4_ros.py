@@ -6,40 +6,39 @@ import numpy as np
 from random import uniform
 
 # Robot model - 6-link manipulator
-d = np.array([267, 0, 0, 342.5, 0, 97])
+d = np.array([267, 0, 0, 342.5, 0, 197])
 q = np.array([0, -1.3849179, 1.3849179, 0, 0, 0])
 alpha = np.array([-math.pi/2, 0, -math.pi/2, math.pi/2, - math.pi/2, 0])
 a = np.array([0, 289.48866, 77.5, 0, 76, 0])
         
 revolute = [True, True, True, True, True, True]
-sigma_d = np.array([600, 0, 700])
+sigma_d = np.array([600, 0, 500])
 robot = Manipulator(d, q, a, alpha, revolute)
 
 # Task hierarchy definition
 tasks = [ 
-    Position2D("End-effector position", sigma_d.reshape(3,1), 6),
-    Orientation2D("End-effector orientation", np.array([0,0,0]).reshape(3,1), 4)
+    Position2D("End-effector position", sigma_d.reshape(3,1), 6)
+    #Orientation2D("End-effector orientation", np.array([0,0,0]).reshape(3,1), 4)
 ] 
 
 # Simulation params
-dt = 1
+dt = 0.1
 
-# Number of tasks
-l = len(tasks)
-abc = [0,0,0,0,0,0]
+x=0
 
-# Initialize ROS node
-rospy.init_node('xarm_control_node', anonymous=True)
 
 # Callback function for joint states
 def joint_states_callback(data):
     global tasks
     global robot
-    global d, q, a, alpha, revolute, sigma_d, abc
+    global d, q, a, alpha, revolute, sigma_d, abc, x
     #if abc[1] == 0:
-    abc = data.position[1:7]
+    
     # Assuming the joint states are in the same order as the DH parameters
-    current_joint_positions = np.array(data.position[1:7] )
+    
+    current_joint_positions = np.array(data.position[1:7])
+        
+    abc = data.position[1:7] 
     robot.update_T(current_joint_positions)
     
     dof = robot.getDOF()
@@ -49,9 +48,10 @@ def joint_states_callback(data):
     dq = np.zeros((dof, 1))
 
     for i in range(len(tasks)):
+        
         tasks[i].update(robot)
         Jbar = tasks[i].getJacobian() @ P
-        dq = dq + DLS(Jbar, 0.5) @ (tasks[i].getError() - (tasks[i].getJacobian() @ dq))
+        dq = dq + DLS(Jbar, 0.2) @ (tasks[i].getError() - (tasks[i].getJacobian() @ dq))
         P = P - np.linalg.pinv(Jbar) @ Jbar
     
     # Update robot
@@ -67,8 +67,9 @@ def joint_states_callback(data):
     point.time_from_start = rospy.Duration(1)
     rate = rospy.Rate(1/dt)
     vel_msg.points.append(point)
-    T = robot.getEETransform()
-    if math.dist(sigma_d,T[0:3,-1])>10:   
+    T_EE = robot.getEETransform()
+    print(T_EE)
+    if math.dist(sigma_d,T_EE[0:3,-1])>10:   
         pub.publish(vel_msg)
         #rate.sleep()
     else:
@@ -76,11 +77,17 @@ def joint_states_callback(data):
         print("position reached")
         rospy.signal_shutdown("User requested shutdown")
 
-# Subscriber for joint states
-rospy.Subscriber('/xarm/joint_states', JointState, joint_states_callback)
+
+# Initialize ROS node
+rospy.init_node('xarm_control_node', anonymous=True)
 
 # Publisher for joint velocities
 pub = rospy.Publisher('/xarm/xarm6_traj_controller/command', JointTrajectory, queue_size=10)
+
+
+# Subscriber for joint states
+rospy.Subscriber('/xarm/joint_states', JointState, joint_states_callback)
+
 
 # Keep the node running
 rospy.spin()

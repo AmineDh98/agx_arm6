@@ -21,7 +21,7 @@ revolute = [True, True, True, True, True, True]
 T = kinematics(d, q, a, alpha)
 #print(T)
 #sigma_d = T[-1][0:3,-1]
-sigma_d = np.array([600, 0, 300])
+sigma_d = np.array([-600, 200, 700])
 goal_pose = Point()
 goal_pose.x = sigma_d[0]
 goal_pose.y = sigma_d[1]
@@ -35,9 +35,11 @@ abc = [0,0,0,0,0,0]
 # Callback function to process joint states and control the arm
 def joint_states_callback(msg):
     global d, q, a, alpha, revolute, sigma_d, K, abc
-    abc = msg.position[1:7]
+    
     # Extract current joint positions
     current_joint_positions = np.array(msg.position[1:7]+q)
+ 
+    abc = msg.position[1:7]
     #abc = current_joint_positions
     # Update robot
     T = kinematics(d, current_joint_positions, a, alpha)
@@ -49,6 +51,7 @@ def joint_states_callback(msg):
     dq1 = np.linalg.pinv(J1) @ (K @ err)
     dq2 = dq1[:, 0] 
     abc += dt * dq2 
+    #print(abc)
     # Publish joint velocities
     pub = rospy.Publisher('/xarm/xarm6_traj_controller/command', JointTrajectory, queue_size=10)
     msg = JointTrajectory()
@@ -64,7 +67,7 @@ def joint_states_callback(msg):
     #point.effort = []
     point.time_from_start = rospy.Duration(1)  # Adjust as needed
     rate = rospy.Rate(1/dt)
-
+    print(T[-1])
     msg.points.append(point)
     if math.dist(sigma_d,T[-1][0:3,-1])>10:   
         pub_goal_pose.publish(goal_pose)
@@ -96,3 +99,6 @@ rospy.Subscriber('/xarm/joint_states', JointState, joint_states_callback)
 
 # Spin to keep the node alive
 rospy.spin()
+
+
+
